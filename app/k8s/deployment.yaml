@@ -6,7 +6,7 @@ metadata:
   labels:
     app: fleet-dashboard
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: fleet-dashboard
@@ -15,9 +15,17 @@ spec:
       labels:
         app: fleet-dashboard
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: fleet-dashboard
+              topologyKey: kubernetes.io/hostname
+      terminationGracePeriodSeconds: 10
       containers:
         - name: dashboard
-          image: fleetdemoacrawke.azurecr.io/fleet-dashboard:v1
+          image: ${ACR_SERVER}/fleet-dashboard:v2
           ports:
             - containerPort: 8080
           env:
@@ -64,3 +72,14 @@ spec:
               port: 8080
             initialDelaySeconds: 3
             periodSeconds: 5
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fleet-dashboard-pdb
+  namespace: fleet-demo
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: fleet-dashboard

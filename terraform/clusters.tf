@@ -8,10 +8,10 @@ resource "azurerm_kubernetes_cluster" "dev" {
   tags = merge(local.tags, { env = "dev", tier = "non-prod" })
 
   default_node_pool {
-    name            = "system"
-    node_count      = 1
-    vm_size         = var.node_vm_size
-    os_disk_size_gb = 50
+    name                        = "system"
+    node_count                  = 2
+    vm_size                     = var.node_vm_size
+    os_disk_size_gb             = 50
     temporary_name_for_rotation = "systmp"
   }
 
@@ -40,10 +40,10 @@ resource "azurerm_kubernetes_cluster" "staging" {
   tags = merge(local.tags, { env = "staging", tier = "non-prod" })
 
   default_node_pool {
-    name            = "system"
-    node_count      = 1
-    vm_size         = var.node_vm_size
-    os_disk_size_gb = 50
+    name                        = "system"
+    node_count                  = 2
+    vm_size                     = var.node_vm_size
+    os_disk_size_gb             = 50
     temporary_name_for_rotation = "systmp"
   }
 
@@ -72,10 +72,10 @@ resource "azurerm_kubernetes_cluster" "prod" {
   tags = merge(local.tags, { env = "prod", tier = "production" })
 
   default_node_pool {
-    name            = "system"
-    node_count      = 2
-    vm_size         = var.node_vm_size
-    os_disk_size_gb = 50
+    name                        = "system"
+    node_count                  = 2
+    vm_size                     = var.node_vm_size
+    os_disk_size_gb             = 50
     temporary_name_for_rotation = "systmp"
   }
 
@@ -94,7 +94,7 @@ resource "azurerm_role_assignment" "prod_acr" {
   principal_id         = azurerm_kubernetes_cluster.prod.kubelet_identity[0].object_id
 }
 
-########## AKS Cluster — Monitor (NOT fleet-managed — runs Uptime Kuma)
+########## AKS Cluster — Monitor (NOT fleet-managed — runs Fleet Monitor)
 resource "azurerm_kubernetes_cluster" "monitor" {
   name                = "${var.prefix}-aks-monitor-${local.suffix}"
   resource_group_name = azurerm_resource_group.rg.name
@@ -104,10 +104,10 @@ resource "azurerm_kubernetes_cluster" "monitor" {
   tags = merge(local.tags, { env = "monitor", tier = "tooling" })
 
   default_node_pool {
-    name            = "system"
-    node_count      = 1
-    vm_size         = var.monitor_node_vm_size
-    os_disk_size_gb = 50
+    name                        = "system"
+    node_count                  = 1
+    vm_size                     = var.monitor_node_vm_size
+    os_disk_size_gb             = 50
     temporary_name_for_rotation = "systmp"
   }
 
