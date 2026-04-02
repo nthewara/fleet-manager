@@ -104,13 +104,28 @@ fleet-manager/
 ### Deploy
 
 ```bash
-# 1. Deploy infrastructure
+# 1. Copy and edit your tfvars (keep outside repo)
+cp terraform/terraform.tfvars.example ~/my-tfvars/fleet-manager.tfvars
+vim ~/my-tfvars/fleet-manager.tfvars  # add your subscription ID
+
+# 2. Create backend.hcl with your storage account details
+cat > ~/my-tfvars/backend.hcl << 'EOF'
+resource_group_name  = "<your-rg>"
+storage_account_name = "<your-storage>"
+container_name       = "tfstate"
+use_azuread_auth     = true
+EOF
+
+# 3. Deploy infrastructure
 cd terraform
-terraform init
-terraform plan -out=tfplan
+terraform init -backend-config=~/my-tfvars/backend.hcl
+terraform plan -var-file=~/my-tfvars/fleet-manager.tfvars -out=tfplan
 terraform apply tfplan
 
-# 2. Build and push sample app
+# 4. Create Fleet with Hub (CLI — TF provider has a hub_profile bug)
+az fleet create -g <rg> -n <fleet> -l australiaeast --enable-hub
+
+# 5. Build and push sample app
 cd ../scripts
 ./build-app.sh
 

@@ -18,7 +18,7 @@ variable "prefix" {
 variable "kubernetes_version" {
   description = "Initial Kubernetes version for fleet member AKS clusters. Use an older version (e.g. 1.31) to enable both node image and K8s version upgrade demos."
   type        = string
-  default     = "1.31"
+  default     = "1.32"
 }
 
 variable "node_vm_size" {

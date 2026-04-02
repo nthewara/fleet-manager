@@ -12,14 +12,9 @@ terraform {
     }
   }
 
-  # Configure your own backend
-  # backend "azurerm" {
-  #   resource_group_name  = "<your-rg>"
-  #   storage_account_name = "<your-storage>"
-  #   container_name       = "tfstate"
-  #   key                  = "fleet-manager-demo.tfstate"
-  #   use_azuread_auth     = true
-  # }
+  backend "azurerm" {
+    key = "fleet-manager-demo.tfstate"
+  }
 }
 
 provider "azurerm" {
