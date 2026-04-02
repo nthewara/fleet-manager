@@ -17,18 +17,14 @@ spec:
     spec:
       containers:
         - name: dashboard
-          image: <ACR_LOGIN_SERVER>/fleet-dashboard:v1
+          image: fleetdemoacrawke.azurecr.io/fleet-dashboard:v1
           ports:
             - containerPort: 8080
           env:
             - name: CLUSTER_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.labels['cluster-name']
+              value: "${CLUSTER_NAME}"
             - name: ENVIRONMENT
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.labels['environment']
+              value: "${ENVIRONMENT}"
             - name: REGION
               value: "australiaeast"
             - name: APP_VERSION

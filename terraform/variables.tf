@@ -16,31 +16,19 @@ variable "prefix" {
 }
 
 variable "kubernetes_version" {
-  description = "Initial Kubernetes version for AKS clusters"
+  description = "Initial Kubernetes version for fleet member AKS clusters (use older version for upgrade demo)"
   type        = string
-  default     = "1.30"
-}
-
-variable "dev_node_count" {
-  description = "Node count for dev cluster"
-  type        = number
-  default     = 1
-}
-
-variable "staging_node_count" {
-  description = "Node count for staging cluster"
-  type        = number
-  default     = 1
-}
-
-variable "prod_node_count" {
-  description = "Node count for production cluster"
-  type        = number
-  default     = 2
+  default     = "1.33"
 }
 
 variable "node_vm_size" {
-  description = "VM size for AKS node pools"
+  description = "VM size for AKS node pools — use D4s_v3 for faster upgrades"
   type        = string
-  default     = "Standard_B2ms"
+  default     = "Standard_D4s_v3"
+}
+
+variable "monitor_node_vm_size" {
+  description = "VM size for monitoring cluster"
+  type        = string
+  default     = "Standard_D2s_v3"
 }
