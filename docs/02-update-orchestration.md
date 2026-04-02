@@ -1,42 +1,112 @@
-# Update Orchestration Demo — CLI Commands
+# Update Orchestration Demo — Complete End-to-End
 
-Based on [AKS Upgrade Best Practices with Fleet Manager](https://github.com/nthewara/fleet-manager) — control plane and node pools upgraded separately for safety and visibility.
+Three upgrade scenarios demonstrating Fleet Manager's orchestration capabilities, following [AKS Upgrade Best Practices](https://github.com/nthewara/fleet-manager).
 
-## Prerequisites
+## Environment
 
 ```bash
 RG="fleetdemo-xuji"
 FLEET="fleetdemo-fleet-xuji"
 ```
 
-## Pre-flight: Check Current State
+## Pre-flight: Current State
 
 ```bash
-# Current K8s versions
+# Fleet members and versions
 az fleet member list -g $RG --fleet-name $FLEET -o table
+
+# Current K8s versions and node images
+for c in fleetdemo-aks-dev-xuji fleetdemo-aks-stg-xuji fleetdemo-aks-prod-xuji; do
+  CP=$(az aks show -g $RG -n $c --query "kubernetesVersion" -o tsv)
+  NODE=$(az aks show -g $RG -n $c --query "agentPoolProfiles[0].currentOrchestratorVersion" -o tsv)
+  IMG=$(az aks show -g $RG -n $c --query "agentPoolProfiles[0].nodeImageVersion" -o tsv)
+  echo "$c: CP=$CP Nodes=$NODE Image=$IMG"
+done
 
 # Available upgrade targets
 az aks get-upgrades -g $RG -n fleetdemo-aks-dev-xuji \
   --query "controlPlaneProfile.upgrades[].kubernetesVersion" -o tsv
 
-# Current node images
-for c in fleetdemo-aks-dev-xuji fleetdemo-aks-stg-xuji fleetdemo-aks-prod-xuji; do
-  IMG=$(az aks show -g $RG -n $c --query "agentPoolProfiles[0].nodeImageVersion" -o tsv)
-  VER=$(az aks show -g $RG -n $c --query "kubernetesVersion" -o tsv)
-  echo "$c: K8s=$VER NodeImage=$IMG"
-done
-
 # View update strategy
 az fleet updatestrategy show -g $RG --fleet-name $FLEET --name staged-rollout
 ```
 
-## Step 1: Control Plane Only Upgrade (K8s 1.33 → 1.34)
+---
 
-Upgrades API server, etcd, scheduler, and controller-manager on all 3 clusters.
-**Zero pod disruption** — workloads keep running throughout.
+## Scenario 1: Node Image Upgrade (Weekly Security Patching)
+
+**What:** Updates the OS image on all nodes — security patches, kernel updates, CVE fixes.
+**K8s version:** Unchanged.
+**Pod disruption:** Yes — nodes are cordoned, drained, and reimaged.
+**Frequency:** Weekly or biweekly in production.
+
+> This is the most common Fleet Manager operation. Teams run this weekly to stay current on OS-level vulnerabilities without changing the Kubernetes version.
+
+### Open Fleet Monitor
+
+Open the Fleet Monitor dashboard and **Reset History** before starting:
+- Fleet Monitor: `http://<monitor-ip>`
+
+### Create and Start
 
 ```bash
-# Create the update run
+az fleet updaterun create \
+  -g $RG --fleet-name $FLEET \
+  --name node-image-weekly \
+  --upgrade-type NodeImageOnly \
+  --node-image-selection Latest \
+  --update-strategy-name staged-rollout
+
+az fleet updaterun start \
+  -g $RG --fleet-name $FLEET \
+  --name node-image-weekly
+```
+
+### Monitor
+
+```bash
+# CLI
+az fleet updaterun show -g $RG --fleet-name $FLEET --name node-image-weekly -o table
+
+# Portal: Fleet Manager → Update runs → node-image-weekly
+```
+
+### What to Watch
+
+- Fleet Monitor shows **red** as each cluster's nodes are drained and reimaged
+- Dev upgrades first → 60s wait → Staging → 120s wait → Production
+- Each cluster takes ~10-15 min (cordon → drain → reimage cycle)
+- After each cluster recovers, Fleet Monitor goes back to **green**
+
+### Verify
+
+```bash
+for c in fleetdemo-aks-dev-xuji fleetdemo-aks-stg-xuji fleetdemo-aks-prod-xuji; do
+  IMG=$(az aks show -g $RG -n $c --query "agentPoolProfiles[0].nodeImageVersion" -o tsv)
+  echo "$c: Image=$IMG"
+done
+```
+
+Node images should be updated to the latest version. K8s version remains unchanged.
+
+---
+
+## Scenario 2: Control Plane Only Upgrade (K8s 1.33 → 1.34)
+
+**What:** Upgrades the API server, etcd, scheduler, and controller-manager.
+**Node pools:** Unchanged — kubelet stays on 1.33.
+**Pod disruption:** None — workloads keep running throughout.
+**When:** When a new K8s minor version is available and you want to validate API compatibility before touching nodes.
+
+> This is the safest first step in a K8s version upgrade. Zero pod disruption means you can validate that controllers, webhooks, and Helm charts work against the new API version before committing to a node pool upgrade.
+
+### Reset Fleet Monitor History
+
+Reset history in Fleet Monitor before starting this scenario.
+
+### Create and Start
+
+```bash
 az fleet updaterun create \
   -g $RG --fleet-name $FLEET \
   --name cp-upgrade-134 \
@@ -44,23 +114,26 @@ az fleet updaterun create \
   --kubernetes-version 1.34.4 \
   --update-strategy-name staged-rollout
 
-# Start the rollout
 az fleet updaterun start \
   -g $RG --fleet-name $FLEET \
   --name cp-upgrade-134
-
-# Monitor progress
-az fleet updaterun show \
-  -g $RG --fleet-name $FLEET \
-  --name cp-upgrade-134 -o table
 ```
 
-**What to watch:**
-- Fleet Monitor dashboard should stay **all green** — no downtime during control plane upgrade
-- Each stage completes in ~5 min per cluster
-- Staged rollout: dev → (60s wait) → staging → (120s wait) → production
+### Monitor
 
-**Verify after completion:**
+```bash
+az fleet updaterun show -g $RG --fleet-name $FLEET --name cp-upgrade-134 -o table
+```
+
+### What to Watch
+
+- Fleet Monitor stays **all green** — no pod disruption during control plane upgrade
+- Each cluster completes in ~5 min
+- Staged rollout: dev → (60s) → staging → (120s) → production
+- This is the key demo moment: "zero-downtime control plane upgrade across the fleet"
+
+### Verify
+
 ```bash
 for c in fleetdemo-aks-dev-xuji fleetdemo-aks-stg-xuji fleetdemo-aks-prod-xuji; do
   CP=$(az aks show -g $RG -n $c --query "kubernetesVersion" -o tsv)
@@ -69,40 +142,51 @@ for c in fleetdemo-aks-dev-xuji fleetdemo-aks-stg-xuji fleetdemo-aks-prod-xuji; 
 done
 ```
 
-Expected: Control plane = 1.34.4, Nodes still on 1.33.x (split version state — this is expected and supported)
+Expected: Control plane = **1.34.4**, Nodes = **1.33.x** (split version — expected and supported, nodes can trail by up to 2 minor versions).
 
-## Step 2: Node Image Upgrade
+---
 
-Updates node OS images and kubelet version. **This is where pods get disrupted** — nodes are cordoned, drained, and reimaged one by one.
+## Scenario 3: Full Upgrade (Bring Nodes to 1.34)
+
+**What:** Upgrades node pools to match the control plane — kubelet version + node image.
+**Pod disruption:** Yes — nodes are cordoned, drained, and reimaged.
+**When:** After control plane upgrade is validated and stable.
+
+> This completes the K8s version upgrade. Now both control plane and nodes are on 1.34.
+
+### Reset Fleet Monitor History
+
+Reset history again to get a clean view of node upgrade downtime.
+
+### Create and Start
 
 ```bash
-# Create the update run
 az fleet updaterun create \
   -g $RG --fleet-name $FLEET \
-  --name node-upgrade-134 \
-  --upgrade-type NodeImageOnly \
-  --node-image-selection Latest \
+  --name full-upgrade-134 \
+  --upgrade-type Full \
+  --kubernetes-version 1.34.4 \
   --update-strategy-name staged-rollout
 
-# Start the rollout
 az fleet updaterun start \
   -g $RG --fleet-name $FLEET \
-  --name node-upgrade-134
-
-# Monitor progress
-az fleet updaterun show \
-  -g $RG --fleet-name $FLEET \
-  --name node-upgrade-134 -o table
+  --name full-upgrade-134
 ```
 
-**What to watch:**
-- Fleet Monitor dashboard shows **red/yellow** as each cluster's pods restart during node drain
-- Dev goes first — you'll see brief downtime, then recovery
-- After 60s wait, staging follows with the same pattern
-- After 120s wait, production upgrades last
-- Each cluster takes ~10-15 min for node pool upgrade
+### Monitor
 
-**Verify after completion:**
+```bash
+az fleet updaterun show -g $RG --fleet-name $FLEET --name full-upgrade-134 -o table
+```
+
+### What to Watch
+
+- Control plane already on 1.34 — this only upgrades node pools
+- Fleet Monitor shows **red** during node drain/reimage (same pattern as Scenario 1)
+- Staged rollout: dev → staging → production
+
+### Final Verification
+
 ```bash
 for c in fleetdemo-aks-dev-xuji fleetdemo-aks-stg-xuji fleetdemo-aks-prod-xuji; do
   CP=$(az aks show -g $RG -n $c --query "kubernetesVersion" -o tsv)
@@ -112,35 +196,28 @@ for c in fleetdemo-aks-dev-xuji fleetdemo-aks-stg-xuji fleetdemo-aks-prod-xuji; 
 done
 ```
 
-## Why Separate Upgrades?
+Expected: All clusters on **K8s 1.34.4** with matching control plane and node versions.
 
-| Aspect | Control Plane | Node Pool |
-|--------|--------------|-----------|
-| **Duration** | ~5 min/cluster | ~10-15 min/cluster |
-| **Pod disruption** | None | Yes (drain + reimage) |
-| **Risk** | Low (API server restart only) | Medium (pod eviction) |
-| **Rollback** | Difficult | Blue-green possible |
+---
 
-Separating them gives you:
-1. **Faster validation** — verify API compatibility before touching workloads
-2. **Clear downtime window** — know exactly when pods will be disrupted
-3. **Better demo visibility** — Fleet Monitor shows the difference clearly
+## Summary: Three Upgrade Types
+
+| Scenario | Type | K8s Version Change | Pod Disruption | Duration/Cluster | Frequency |
+|----------|------|-------------------|----------------|-----------------|-----------|
+| 1. Node Image | `NodeImageOnly` | No | Yes (drain/reimage) | ~10-15 min | Weekly |
+| 2. Control Plane | `ControlPlaneOnly` | Yes (CP only) | None | ~5 min | Per K8s release |
+| 3. Full Upgrade | `Full` | Yes (nodes) | Yes (drain/reimage) | ~10-15 min | Per K8s release |
 
 ## Emergency: Stop an Update Run
 
 ```bash
-az fleet updaterun stop \
-  -g $RG --fleet-name $FLEET \
-  --name <run-name>
+az fleet updaterun stop -g $RG --fleet-name $FLEET --name <run-name>
 ```
 
-## Portal View
+## Fleet Monitor
 
-Monitor in Azure Portal: **Fleet Manager → Update runs** for a visual timeline of each stage.
-
-## Fleet Monitor Dashboard
-
-Open the Fleet Monitor at the monitor cluster IP to watch real-time health during upgrades:
-- 🟢 Green = cluster healthy
-- 🔴 Red = cluster offline (being upgraded)
-- Uptime timeline shows the exact downtime window per cluster
+Watch real-time cluster health during all scenarios:
+- 🟢 Green = cluster healthy, app responding
+- 🔴 Red = cluster offline (nodes being upgraded)
+- Uptime timeline shows exact downtime window per cluster
+- K8s version updates live as each cluster completes
