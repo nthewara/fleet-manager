@@ -1,0 +1,40 @@
+# ClusterResourcePlacement — Deploy to all production clusters
+# Apply this on the hub cluster to propagate the fleet-demo namespace
+apiVersion: placement.kubernetes-fleet.io/v1
+kind: ClusterResourcePlacement
+metadata:
+  name: deploy-fleet-dashboard
+spec:
+  resourceSelectors:
+    - group: ""
+      kind: Namespace
+      name: fleet-demo
+      version: v1
+  policy:
+    placementType: PickAll
+    affinity:
+      clusterAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          clusterSelectorTerms:
+            - labelSelector:
+                matchLabels:
+                  fleet.azure.com/member-cluster-group: prod
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+---
+# Alternative: Deploy to ALL member clusters
+# Uncomment and apply this instead of the above to propagate everywhere
+# apiVersion: placement.kubernetes-fleet.io/v1
+# kind: ClusterResourcePlacement
+# metadata:
+#   name: deploy-fleet-dashboard-all
+# spec:
+#   resourceSelectors:
+#     - group: ""
+#       kind: Namespace
+#       name: fleet-demo
+#       version: v1
+#   policy:
+#     placementType: PickAll
