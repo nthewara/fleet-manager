@@ -2,6 +2,8 @@
 
 Multi-cluster Kubernetes management demo environment using AKS Fleet Manager with Terraform, a sample app, and guided demo scenarios.
 
+![Architecture](docs/architecture.png)
+
 ## 🎯 Demo Scenarios
 
 This demo showcases three core Fleet Manager capabilities:
