@@ -4,9 +4,12 @@ Three upgrade scenarios demonstrating Fleet Manager's orchestration capabilities
 
 ## Environment
 
+> **Important:** Clusters must be deployed on K8s 1.31 (not latest) so the node images are older
+> and all three upgrade scenarios can be demonstrated. The Terraform template defaults to 1.31 for this reason.
+
 ```bash
-RG="fleetdemo-xuji"
-FLEET="fleetdemo-fleet-xuji"
+RG="<your-rg>"
+FLEET="<your-fleet>"
 ```
 
 ## Pre-flight: Current State
@@ -91,10 +94,10 @@ Node images should be updated to the latest version. K8s version remains unchang
 
 ---
 
-## Scenario 2: Control Plane Only Upgrade (K8s 1.33 → 1.34)
+## Scenario 2: Control Plane Only Upgrade (K8s 1.31 → 1.32)
 
 **What:** Upgrades the API server, etcd, scheduler, and controller-manager.
-**Node pools:** Unchanged — kubelet stays on 1.33.
+**Node pools:** Unchanged — kubelet stays on 1.31.
 **Pod disruption:** None — workloads keep running throughout.
 **When:** When a new K8s minor version is available and you want to validate API compatibility before touching nodes.
 
@@ -109,20 +112,20 @@ Reset history in Fleet Monitor before starting this scenario.
 ```bash
 az fleet updaterun create \
   -g $RG --fleet-name $FLEET \
-  --name cp-upgrade-134 \
+  --name cp-upgrade-132 \
   --upgrade-type ControlPlaneOnly \
-  --kubernetes-version 1.34.4 \
+  --kubernetes-version 1.32.7 \
   --update-strategy-name staged-rollout
 
 az fleet updaterun start \
   -g $RG --fleet-name $FLEET \
-  --name cp-upgrade-134
+  --name cp-upgrade-132
 ```
 
 ### Monitor
 
 ```bash
-az fleet updaterun show -g $RG --fleet-name $FLEET --name cp-upgrade-134 -o table
+az fleet updaterun show -g $RG --fleet-name $FLEET --name cp-upgrade-132 -o table
 ```
 
 ### What to Watch
@@ -142,7 +145,7 @@ for c in fleetdemo-aks-dev-xuji fleetdemo-aks-stg-xuji fleetdemo-aks-prod-xuji; 
 done
 ```
 
-Expected: Control plane = **1.34.4**, Nodes = **1.33.x** (split version — expected and supported, nodes can trail by up to 2 minor versions).
+Expected: Control plane = **1.32.7**, Nodes = **1.31.x** (split version — expected and supported, nodes can trail by up to 2 minor versions).
 
 ---
 
@@ -163,20 +166,20 @@ Reset history again to get a clean view of node upgrade downtime.
 ```bash
 az fleet updaterun create \
   -g $RG --fleet-name $FLEET \
-  --name full-upgrade-134 \
+  --name full-upgrade-132 \
   --upgrade-type Full \
-  --kubernetes-version 1.34.4 \
+  --kubernetes-version 1.32.7 \
   --update-strategy-name staged-rollout
 
 az fleet updaterun start \
   -g $RG --fleet-name $FLEET \
-  --name full-upgrade-134
+  --name full-upgrade-132
 ```
 
 ### Monitor
 
 ```bash
-az fleet updaterun show -g $RG --fleet-name $FLEET --name full-upgrade-134 -o table
+az fleet updaterun show -g $RG --fleet-name $FLEET --name full-upgrade-132 -o table
 ```
 
 ### What to Watch
@@ -196,7 +199,7 @@ for c in fleetdemo-aks-dev-xuji fleetdemo-aks-stg-xuji fleetdemo-aks-prod-xuji; 
 done
 ```
 
-Expected: All clusters on **K8s 1.34.4** with matching control plane and node versions.
+Expected: All clusters on **K8s 1.32.7** with matching control plane and node versions.
 
 ---
 

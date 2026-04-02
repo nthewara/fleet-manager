@@ -1,6 +1,6 @@
 subscription_id      = "<your-subscription-id>"
 location             = "australiaeast"
 prefix               = "fleetdemo"
-kubernetes_version   = "1.33"
+kubernetes_version   = "1.31"
 node_vm_size         = "Standard_D4s_v3"
 monitor_node_vm_size = "Standard_D2s_v3"
