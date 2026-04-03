@@ -82,6 +82,12 @@ fleet-manager/
 │       ├── deployment.yaml
 │       ├── service.yaml
 │       └── crp.yaml             # ClusterResourcePlacement
+├── monitor/                     # Fleet monitor app
+│   ├── Dockerfile               # Monitor container image
+│   ├── app.py                   # Monitor service with health-probe latency logic
+│   ├── deployment.yaml          # Monitor deployment + service
+│   └── templates/
+│       └── index.html           # Monitor UI
 ├── docs/                        # Demo walkthroughs
 │   ├── 01-deploy-infra.md       # Step 1: Deploy with Terraform
 │   ├── 02-update-orchestration.md  # Scenario 1: Staged upgrades
@@ -149,6 +155,12 @@ The demo includes a **Fleet Dashboard** — a lightweight Flask web app that dis
 - **Request routing** — shows which cluster handled each request (for cross-cluster LB demo)
 
 The app uses distinct colour themes per environment (🟢 Dev, 🟡 Staging, 🔴 Production) so it's visually obvious which cluster is responding during demos.
+
+The repo also includes a **Fleet Monitor** app that polls the member clusters and presents:
+- **Dedicated health-probe latency** using `/api/health`
+- **Rolling average latency** for steadier demo visuals
+- **Separate uptime history** so transient spikes don't dominate the story
+- **Cluster metadata** fetched independently from the latency probe
 
 ## 📖 Demo Flow
 
